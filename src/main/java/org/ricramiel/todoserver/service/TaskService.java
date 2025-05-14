@@ -9,6 +9,7 @@ import org.ricramiel.todoserver.repository.specifications.TaskSpecifications;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,28 +30,28 @@ public class TaskService {
         sb.delete(0, sb.length());
         Pattern priorityPattern = Pattern.compile("( |^)![1234]( |$)");
         Matcher priorityMatcher = priorityPattern.matcher(task.getTitle());
-        Pattern deadlinePattern = Pattern.compile("( |^)!deadline (\\d{2}.\\d{2}.\\d{4}|(\\d{2}-\\d{2}-\\d{4}))( |$)");
+        Pattern deadlinePattern = Pattern.compile("( |^)!before (\\d{2}.\\d{2}.\\d{4}|(\\d{2}-\\d{2}-\\d{4}))( |$)");
         Matcher deadlineMatcher = deadlinePattern.matcher(task.getTitle());
 
-        Pattern overAllPattern = Pattern.compile("(\\B![1234]( |$))|(\\B!deadline (\\d{2}.\\d{2}.\\d{4}|\\d{2}-\\d{2}-\\d{4})( |$))");
+        Pattern overAllPattern = Pattern.compile("(\\B![1234]( |$))|(\\B!before (\\d{2}.\\d{2}.\\d{4}|\\d{2}-\\d{2}-\\d{4})( |$))");
         Matcher overAllMatcher = overAllPattern.matcher(task.getTitle());
         if (task.getPriority() == null && priorityMatcher.find()) {
             String macrosPriority = priorityMatcher.group().trim();
             switch (macrosPriority) {
                 case "!1": {
-                    task.setPriority(PriorityEnum.LOW);
+                    task.setPriority(PriorityEnum.CRITICAL);
                     break;
                 }
                 case "!2": {
-                    task.setPriority(PriorityEnum.MEDIUM);
-                    break;
-                }
-                case "!3": {
                     task.setPriority(PriorityEnum.HIGH);
                     break;
                 }
+                case "!3": {
+                    task.setPriority(PriorityEnum.MEDIUM);
+                    break;
+                }
                 case "!4": {
-                    task.setPriority(PriorityEnum.CRITICAL);
+                    task.setPriority(PriorityEnum.LOW);
                     break;
                 }
                 default: {
@@ -67,9 +68,14 @@ public class TaskService {
             String macrosDeadline = deadlineMatcher.group(2).trim();
             String[] temp = macrosDeadline.split("[.\\-]");
             Integer[] dmy = Stream.of(temp).map(Integer::valueOf).toArray(Integer[]::new);
-            LocalDate deadline = LocalDate.of(dmy[2], dmy[1], dmy[0]);
-            task.setDeadline(deadline);
+            LocalDate deadline = null;
+            try {
+                deadline = LocalDate.of(dmy[2], dmy[1], dmy[0]);
+            } catch (DateTimeException e) {
+                e.printStackTrace();
+            }
 
+            task.setDeadline(deadline);
         }
         while (overAllMatcher.find()) {
             overAllMatcher.appendReplacement(sb, "");
